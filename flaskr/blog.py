@@ -12,7 +12,7 @@ bp = Blueprint('blog', __name__) # note that this does not have a url prefix
 
 # DONE: post detail view
 # TODO: implement liking / unliking functionality
-# TODO: implement comments
+# DONE: implement comments
 # TODO: implement tags
 # TODO: clicking a tag shows all the posts with that tag
 # TODO: add a search box that filters by name
@@ -74,16 +74,20 @@ def get_post(id, check_author=True):
     return post
 
 @bp.route('/<int:id>/details', methods=['GET'])
-def details(id, show_comment=0):
+def details(id):
     post = get_post(id, False)
     db = get_db()
     comments = db.execute(
-        'SELECT post_id, c.author_id, content, c.created, username'
+        'SELECT c.id as id, post_id, c.author_id, content, c.created, username'
         ' FROM post p JOIN comment c ON p.id = c.post_id'
         ' JOIN user u ON u.id = c.author_id'
-        ' ORDER BY c.created DESC'
+        ' WHERE p.id = ?'
+        ' ORDER BY c.created DESC',
+        (id,)
     ).fetchall()
-    return render_template('blog/details.html', post=post, comments=comments)
+
+    show_comment = request.args.get('show_comment')
+    return render_template('blog/details.html', post=post, comments=comments, show_comment=show_comment)
 
 
 # note how the id param is written in the url
@@ -146,7 +150,7 @@ def comment(id):
 @login_required
 def delete_comment(id):
     db = get_db()
-    comment =  db.execute(
+    post_id =  db.execute(
         'SELECT post_id FROM comment WHERE id = ?', (id,)
     ).fetchone()
 
@@ -156,4 +160,4 @@ def delete_comment(id):
     db.execute('DELETE FROM comment WHERE id = ?', (id,))
     db.commit()
 
-    return redirect(url_for('blog.details', id=comment['post_id']))
+    return redirect(url_for('blog.details', id=post_id['post_id']))
